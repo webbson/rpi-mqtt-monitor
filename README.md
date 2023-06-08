@@ -1,16 +1,16 @@
 # Raspberry Pi MQTT Monitor
 
- ![GitHub release (latest by date)](https://img.shields.io/github/v/release/hjelev/rpi-mqtt-monitor) ![GitHub repo size](https://img.shields.io/github/repo-size/hjelev/rpi-mqtt-monitor) ![GitHub issues](https://img.shields.io/github/issues/hjelev/rpi-mqtt-monitor) ![GitHub closed issues](https://img.shields.io/github/issues-closed/hjelev/rpi-mqtt-monitor)  ![GitHub language count](https://img.shields.io/github/languages/count/hjelev/rpi-mqtt-monitor) ![GitHub top language](https://img.shields.io/github/languages/top/hjelev/rpi-mqtt-monitor)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/hjelev/rpi-mqtt-monitor) ![GitHub repo size](https://img.shields.io/github/repo-size/hjelev/rpi-mqtt-monitor) ![GitHub issues](https://img.shields.io/github/issues/hjelev/rpi-mqtt-monitor) ![GitHub closed issues](https://img.shields.io/github/issues-closed/hjelev/rpi-mqtt-monitor) ![GitHub language count](https://img.shields.io/github/languages/count/hjelev/rpi-mqtt-monitor) ![GitHub top language](https://img.shields.io/github/languages/top/hjelev/rpi-mqtt-monitor)
 
 The easiest way to track your Raspberry Pi or Ubuntu computer system health and performance in Home Assistant.
 
-* Monitor: cpu load, cpu temperature, free space, used memory, swap usage, uptime, wifi signal quality, voltage and system clock speed.
+- Monitor: cpu load, cpu temperature, free space, used memory, swap usage, uptime, wifi signal quality, voltage, ip address and system clock speed.
 
-* Supports discovery messages so no manual configuration in [Home Assistant](https://www.home-assistant.io/) configuration.yaml is needed.
+- Supports discovery messages so no manual configuration in [Home Assistant](https://www.home-assistant.io/) configuration.yaml is needed.
 
-* You can install it with just one command from shell.
+- You can install it with just one command from shell.
 
-* Configurable: You can select what is monitored and how the message(s) is send (separately or as one csv message)
+- Configurable: You can select what is monitored and how the message(s) is send (separately or as one csv message)
 
 ## Installation
 
@@ -26,10 +26,10 @@ Raspberry Pi MQTT monitor will be intalled in the location where the installer i
 
 The auto-installer needs the software below and will install it if its not found:
 
-* python (2 or 3)
-* python-pip
-* git
-* paho-mqtt
+- python (2 or 3)
+- python-pip
+- git
+- paho-mqtt
 
 Only python is not automatically installed, the rest of the dependancies should be handeled by the auto installation.
 It will also help you configure the host and credentials for the mqtt server in config.py and create the cronjob configuration for you.
@@ -62,15 +62,15 @@ apt install git
 git clone https://github.com/hjelev/rpi-mqtt-monitor.git
 ```
 
-5. Rename ```src/config.py.example``` to ```src/config.py```
+5. Rename `src/config.py.example` to `src/config.py`
 
 ## Configuration
 
 (only needed for manual installation)
-Populate the variables for MQTT host, user, password and main topic in ```src/config.py```.
+Populate the variables for MQTT host, user, password and main topic in `src/config.py`.
 
 You can also choose what messages are sent and what is the delay (sleep_time is only used for multiple messages) between them.
-If you are sending a grouped message, and you want to delay the execution of the script you need to use the ```random_delay``` variable which is set to 1 by default.
+If you are sending a grouped message, and you want to delay the execution of the script you need to use the `random_delay` variable which is set to 1 by default.
 This is the default configuration:
 
 ```
@@ -88,15 +88,16 @@ memory = True
 uptime = True
 wifi_signal = False
 wifi_signal_dbm = False
+ip_addr = True
 ```
 
-If ```discovery_messages``` is set to true, the script will send MQTT Discovery config messages which allows Home Assistant to automatically add the sensors without having to define them in configuration.  Note, this setting is only available when ```group_messages``` is not used.
+If `discovery_messages` is set to true, the script will send MQTT Discovery config messages which allows Home Assistant to automatically add the sensors without having to define them in configuration. Note, this setting is only available when `group_messages` is not used.
 
-If ```group_messages``` is set to true the script will send just one message containing all values in CSV format.
+If `group_messages` is set to true the script will send just one message containing all values in CSV format.
 The group message looks like this:
 
 ```
-1.3, 47.1, 12, 1.2, 600, nan, 14.1, 12, 50, -60
+1.3, 47.1, 12, 1.2, 600, nan, 14.1, 12, 50, -60, "127.0.0.1"
 ```
 
 ## Test Raspberry Pi MQTT Monitor
@@ -116,6 +117,7 @@ Create a cron entry like this (you might need to update the path in the cron ent
 ```
 */2 * * * * /usr/bin/python /home/pi/rpi-mqtt-monitor/rpi-cpu2mqtt.py
 ```
+
 ## How to update
 
 Navigate to the folder where Rapsberry Pi MQTT Monitor is installed and pull the git repository:
@@ -129,128 +131,138 @@ git pull
 ![Rapsberry Pi MQTT Monitor in Home Assistant](images/rpi-cpu2mqtt-hass.jpg)
 
 Once you installed the script on your raspberry you need to create some sensors in home assistant.
-If you are using ```discovery_messages```, then this step is not required as a new MQTT device will be automatically created in Home Assistant and all you need to do is add it to a dashboard.
+If you are using `discovery_messages`, then this step is not required as a new MQTT device will be automatically created in Home Assistant and all you need to do is add it to a dashboard.
 
-This is the sensors configuration if ```group_messages = True``` assuming your sensors are separated in ```sensors.yaml``` file.
-
-```yaml
-  - platform: mqtt
-    name: 'rpi4 cpu load'
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[0] }}'
-    unit_of_measurement: "%"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[1] }}'
-    name: rpi4 cpu temp
-    unit_of_measurement: "°C"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[2] }}'
-    name: rpi4 diskusage
-    unit_of_measurement: "%"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[3] }}'
-    name: rpi4 voltage
-    unit_of_measurement: "V"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[4] }}'
-    name: rpi4 sys clock speed
-    unit_of_measurement: "MHz"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[5] }}'
-    name: rpi4 swap
-    unit_of_measurement: "%"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[6] }}'
-    name: rpi4 memory
-    unit_of_measurement: "%"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[7] }}'
-    name: rpi4 uptime
-    unit_of_measurement: "days"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[8] }}'
-    name: rpi4 wifi signal
-    unit_of_measurement: "%"
-
-  - platform: mqtt
-    state_topic: 'masoko/rpi4'
-    value_template: '{{ value.split(",")[9] }}'
-    name: rpi4 wifi signal
-    unit_of_measurement: "dBm"
-```
-
-This is the sensors configuration if ```group_messages = False``` assuming your sensors are separated in ```sensors.yaml``` file.
+This is the sensors configuration if `group_messages = True` assuming your sensors are separated in `sensors.yaml` file.
 
 ```yaml
-  - platform: mqtt
-    state_topic: "masoko/rpi4/cpuload"
-    name: rpi4 cpu load
-    unit_of_measurement: "%"
+- platform: mqtt
+  name: "rpi4 cpu load"
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[0] }}'
+  unit_of_measurement: "%"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/cputemp"
-    name: rpi4 cpu temp
-    unit_of_measurement: "°C"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[1] }}'
+  name: rpi4 cpu temp
+  unit_of_measurement: "°C"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/diskusage"
-    name: rpi4 diskusage
-    unit_of_measurement: "%"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[2] }}'
+  name: rpi4 diskusage
+  unit_of_measurement: "%"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/voltage"
-    name: rpi4 voltage
-    unit_of_measurement: "V"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[3] }}'
+  name: rpi4 voltage
+  unit_of_measurement: "V"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/sys_clock_speed"
-    name: rpi4 sys clock speed
-    unit_of_measurement: "hz"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[4] }}'
+  name: rpi4 sys clock speed
+  unit_of_measurement: "MHz"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/swap"
-    name: rpi4 swap
-    unit_of_measurement: "%"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[5] }}'
+  name: rpi4 swap
+  unit_of_measurement: "%"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/memory"
-    name: rpi4 memory
-    unit_of_measurement: "%"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[6] }}'
+  name: rpi4 memory
+  unit_of_measurement: "%"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/uptime_days"
-    name: rpi4 uptime
-    unit_of_measurement: "days"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[7] }}'
+  name: rpi4 uptime
+  unit_of_measurement: "days"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/wifi_signal"
-    name: rpi4 wifi signal
-    unit_of_measurement: "%"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[8] }}'
+  name: rpi4 wifi signal
+  unit_of_measurement: "%"
 
-  - platform: mqtt
-    state_topic: "masoko/rpi4/wifi_signal_dbm"
-    name: rpi4 wifi signal
-    unit_of_measurement: "dBm"
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[9] }}'
+  name: rpi4 wifi signal
+  unit_of_measurement: "dBm"
 
+- platform: mqtt
+  state_topic: "masoko/rpi4"
+  value_template: '{{ value.split(",")[10] }}'
+  name: rpi4 ip address
+  unit_of_measurement: ""
 ```
 
-Add this to your ```customize.yaml``` file to change the icons of the sensors.
+This is the sensors configuration if `group_messages = False` assuming your sensors are separated in `sensors.yaml` file.
+
+```yaml
+- platform: mqtt
+  state_topic: "masoko/rpi4/cpuload"
+  name: rpi4 cpu load
+  unit_of_measurement: "%"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/cputemp"
+  name: rpi4 cpu temp
+  unit_of_measurement: "°C"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/diskusage"
+  name: rpi4 diskusage
+  unit_of_measurement: "%"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/voltage"
+  name: rpi4 voltage
+  unit_of_measurement: "V"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/sys_clock_speed"
+  name: rpi4 sys clock speed
+  unit_of_measurement: "hz"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/swap"
+  name: rpi4 swap
+  unit_of_measurement: "%"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/memory"
+  name: rpi4 memory
+  unit_of_measurement: "%"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/uptime_days"
+  name: rpi4 uptime
+  unit_of_measurement: "days"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/wifi_signal"
+  name: rpi4 wifi signal
+  unit_of_measurement: "%"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/wifi_signal_dbm"
+  name: rpi4 wifi signal
+  unit_of_measurement: "dBm"
+
+- platform: mqtt
+  state_topic: "masoko/rpi4/ip_address"
+  name: rpi4 ip adress
+  unit_of_measurement: ""
+```
+
+Add this to your `customize.yaml` file to change the icons of the sensors.
 
 ```yaml
 sensor.rpi4_voltage:
@@ -289,6 +301,7 @@ entities:
   - entity: sensor.rpi4_uptime
   - entity: sensor.rpi4_wifi_signal
   - entity: sensor.rpi4_wifi_signal_dbm
+  - entity: sensor.rpi4_ip_address
 ```
 
 ## To Do

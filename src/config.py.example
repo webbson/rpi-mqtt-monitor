@@ -36,3 +36,4 @@ uptime = True
 # Enable wifi_signal for unit of measuring % or wifi_signal_dbm for unit of meaning dBm
 wifi_signal = True
 wifi_signal_dbm = False
+ip_addr = True

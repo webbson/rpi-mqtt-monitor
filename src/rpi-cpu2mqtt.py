@@ -134,6 +134,10 @@ def get_manufacturer():
         
     return(pretty_name)
 
+def get_ip_address():
+    full_cmd = "hostname -I | awk '{print $1}'"
+    ip_address = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8")
+    return ip_address.strip()
 
 def config_json(what_config):
     model_name = check_model_name()
@@ -196,6 +200,10 @@ def config_json(what_config):
         data["icon"] = "mdi:wifi"
         data["name"] = hostname + " Wifi Signal"
         data["unit_of_measurement"] = "dBm"
+    elif what_config == "ip_addr":
+        data["icon"] = "mdi:ip"
+        data["name"] = hostname + " IP Address"
+        data["unit_of_measurement"] = ""
     else:
         return ""
     # Return our built discovery config
@@ -203,7 +211,7 @@ def config_json(what_config):
 
 
 def publish_to_mqtt(cpu_load=0, cpu_temp=0, used_space=0, voltage=0, sys_clock_speed=0, swap=0, memory=0,
-                    uptime_days=0, wifi_signal=0, wifi_signal_dbm=0):
+                    uptime_days=0, wifi_signal=0, wifi_signal_dbm=0, ip_addr=""):
     # connect to mqtt server
     client = paho.Client()
     client.username_pw_set(config.mqtt_user, config.mqtt_password)
@@ -281,16 +289,22 @@ def publish_to_mqtt(cpu_load=0, cpu_temp=0, used_space=0, voltage=0, sys_clock_s
             time.sleep(config.sleep_time)
         client.publish(config.mqtt_topic_prefix + "/" + hostname + "/wifi_signal_dbm", wifi_signal_dbm, qos=1)
         time.sleep(config.sleep_time)
-
+    if config.ip_addr:
+        if config.discovery_messages:
+            client.publish("homeassistant/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_ip_addr/config",
+                           config_json('ip_addr'), qos=0)
+            time.sleep(config.sleep_time)
+        client.publish(config.mqtt_topic_prefix + "/" + hostname + "/ip_addr", ip_addr, qos=1)
+        time.sleep(config.sleep_time)
     # disconnect from mqtt server
     client.disconnect()
 
 
 def bulk_publish_to_mqtt(cpu_load=0, cpu_temp=0, used_space=0, voltage=0, sys_clock_speed=0, swap=0, memory=0,
-                         uptime_days=0, wifi_signal=0, wifi_signal_dbm=0):
+                         uptime_days=0, wifi_signal=0, wifi_signal_dbm=0, ip_addr=""):
     # compose the CSV message containing the measured values
 
-    values = cpu_load, cpu_temp, used_space, voltage, int(sys_clock_speed), swap, memory, uptime_days, wifi_signal, wifi_signal_dbm
+    values = cpu_load, cpu_temp, used_space, voltage, int(sys_clock_speed), swap, memory, uptime_days, wifi_signal, wifi_signal_dbm, ip_addr
     values = str(values)[1:-1]
 
     # connect to mqtt server
@@ -307,7 +321,7 @@ def bulk_publish_to_mqtt(cpu_load=0, cpu_temp=0, used_space=0, voltage=0, sys_cl
     
 if __name__ == '__main__':
     # set all monitored values to False in case they are turned off in the config
-    cpu_load = cpu_temp = used_space = voltage = sys_clock_speed = swap = memory = uptime_days = wifi_signal = wifi_signal_dbm =  False
+    cpu_load = cpu_temp = used_space = voltage = sys_clock_speed = swap = memory = uptime_days = wifi_signal = wifi_signal_dbm = ip_addr =  False
 
     # delay the execution of the script
     if hasattr(config, 'random_delay'): time.sleep(config.random_delay)
@@ -336,8 +350,10 @@ if __name__ == '__main__':
         wifi_signal = check_wifi_signal('')
     if config.wifi_signal_dbm:
         wifi_signal_dbm = check_wifi_signal('dbm')
+    if config.ip_addr:
+        ip_addr = get_ip_address()
     # Publish messages to MQTT
     if hasattr(config, 'group_messages') and config.group_messages:
-        bulk_publish_to_mqtt(cpu_load, cpu_temp, used_space, voltage, sys_clock_speed, swap, memory, uptime_days, wifi_signal, wifi_signal_dbm)
+        bulk_publish_to_mqtt(cpu_load, cpu_temp, used_space, voltage, sys_clock_speed, swap, memory, uptime_days, wifi_signal, wifi_signal_dbm, ip_addr)
     else:
-        publish_to_mqtt(cpu_load, cpu_temp, used_space, voltage, sys_clock_speed, swap, memory, uptime_days, wifi_signal, wifi_signal_dbm)
+        publish_to_mqtt(cpu_load, cpu_temp, used_space, voltage, sys_clock_speed, swap, memory, uptime_days, wifi_signal, wifi_signal_dbm, ip_addr)
