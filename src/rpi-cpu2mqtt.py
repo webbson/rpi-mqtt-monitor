@@ -148,7 +148,6 @@ def config_json(what_config):
         "icon": "",
         "name": "",
         "unique_id": "",
-        "unit_of_measurement": "",
         "device": {
             "identifiers": [hostname],
             "manufacturer": manufacturer,
@@ -203,7 +202,6 @@ def config_json(what_config):
     elif what_config == "ip_addr":
         data["icon"] = "mdi:ip"
         data["name"] = hostname + " IP Address"
-        data["unit_of_measurement"] = ""
     else:
         return ""
     # Return our built discovery config
