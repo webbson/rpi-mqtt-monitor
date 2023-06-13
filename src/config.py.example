@@ -37,3 +37,8 @@ uptime = True
 wifi_signal = True
 wifi_signal_dbm = False
 ip_addr = True
+
+# BME280 sensor configuration
+bme280_temp = False
+bme280_humidity = False
+bme280_pressure = False

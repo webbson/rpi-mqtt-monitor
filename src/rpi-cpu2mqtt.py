@@ -13,6 +13,9 @@ import json
 import config
 import os
 import fileinput
+import smbus2
+import bme280
+
 
 # get device host name - used in mqtt topic
 hostname = socket.gethostname()
@@ -128,7 +131,10 @@ def get_manufacturer():
     if 'Raspberry' not in check_model_name():
         full_cmd = "cat /proc/cpuinfo  | grep 'vendor'| uniq"
         pretty_name = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8")
-        pretty_name = pretty_name.split(':')[1]
+        if pretty_name == '':
+            pretty_name = 'Other'
+        else:
+            pretty_name = pretty_name.split(':')[1]
     else:
         pretty_name = 'Raspberry Pi'
         
@@ -138,6 +144,33 @@ def get_ip_address():
     full_cmd = "hostname -I | awk '{print $1}'"
     ip_address = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8")
     return ip_address.strip()
+
+
+bme_data = False
+def check_bme280():
+    global bme_data
+    if bme_data:
+        return bme_data
+    else: 
+        try:
+            bus = smbus2.SMBus(1)
+            params = bme280.load_calibration_params(bus, 0x76)
+            bme_data = bme280.sample(bus, 0x76, params)
+        except Exception:
+            bme_data = False        
+    return bme_data
+
+def check_bme280_temp():
+    data = check_bme280()
+    return round(data.temperature,1) if data else 0
+
+def check_bme280_humidity():
+    data = check_bme280()
+    return round(data.humidity,1) if data else 0
+
+def check_bme280_pressure():
+    data = check_bme280()
+    return round(data.pressure, 1) if data else 0
 
 def config_json(what_config):
     model_name = check_model_name()
@@ -156,7 +189,6 @@ def config_json(what_config):
             "sw_version": os
         }
     }
-
     data["state_topic"] = config.mqtt_topic_prefix + "/" + hostname + "/" + what_config
     data["unique_id"] = hostname + "_" + what_config
     if what_config == "cpuload":
@@ -202,6 +234,20 @@ def config_json(what_config):
     elif what_config == "ip_addr":
         data["icon"] = "mdi:ip"
         data["name"] = hostname + " IP Address"
+    elif what_config == "bme280_temp":
+        data["icon"] = "hass:thermometer"
+        data["name"] = hostname + " BME280 Temperature"
+        data["unit_of_measurement"] = "°C"
+        data["device_class"] = "temperature"
+    elif what_config == "bme280_humidity":
+        data["icon"] = "mdi:water-percent"
+        data["name"] = hostname + " BME280 Humidity"
+        data["unit_of_measurement"] = "%"
+        data["device_class"] = "humidity"
+    elif what_config == "bme280_pressure":
+        data["name"] = hostname + " BME280 Pressure"
+        data["unit_of_measurement"] = "hPa"
+        data["device_class"] = "pressure"
     else:
         return ""
     # Return our built discovery config
@@ -209,7 +255,7 @@ def config_json(what_config):
 
 
 def publish_to_mqtt(cpu_load=0, cpu_temp=0, used_space=0, voltage=0, sys_clock_speed=0, swap=0, memory=0,
-                    uptime_days=0, wifi_signal=0, wifi_signal_dbm=0, ip_addr=""):
+                    uptime_days=0, wifi_signal=0, wifi_signal_dbm=0, ip_addr="", bme_temp=0, bme_humidity=0,bme_pressure=0):
     # connect to mqtt server
     client = paho.Client()
     client.username_pw_set(config.mqtt_user, config.mqtt_password)
@@ -294,32 +340,34 @@ def publish_to_mqtt(cpu_load=0, cpu_temp=0, used_space=0, voltage=0, sys_clock_s
             time.sleep(config.sleep_time)
         client.publish(config.mqtt_topic_prefix + "/" + hostname + "/ip_addr", ip_addr, qos=1)
         time.sleep(config.sleep_time)
+    if config.bme280_temp:
+        if config.discovery_messages:
+            client.publish("homeassistant/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_bme280_temp/config",
+                           config_json('bme280_temp'), qos=0)
+            time.sleep(config.sleep_time)
+        client.publish(config.mqtt_topic_prefix + "/" + hostname + "/bme280_temp", bme280_temp, qos=1)
+        time.sleep(config.sleep_time)
+    if config.bme280_humidity:
+        if config.discovery_messages:
+            client.publish("homeassistant/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_bme280_humidity/config",
+                           config_json('bme280_humidity'), qos=0)
+            time.sleep(config.sleep_time)
+        client.publish(config.mqtt_topic_prefix + "/" + hostname + "/bme280_humidity", bme280_humidity, qos=1)
+        time.sleep(config.sleep_time)
+    if config.bme280_pressure:
+        if config.discovery_messages:
+            client.publish("homeassistant/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_bme280_pressure/config",
+                           config_json('bme280_pressure'), qos=0)
+            time.sleep(config.sleep_time)
+        client.publish(config.mqtt_topic_prefix + "/" + hostname + "/bme280_pressure", bme280_pressure, qos=1)
+        time.sleep(config.sleep_time)
     # disconnect from mqtt server
     client.disconnect()
 
 
-def bulk_publish_to_mqtt(cpu_load=0, cpu_temp=0, used_space=0, voltage=0, sys_clock_speed=0, swap=0, memory=0,
-                         uptime_days=0, wifi_signal=0, wifi_signal_dbm=0, ip_addr=""):
-    # compose the CSV message containing the measured values
-
-    values = cpu_load, cpu_temp, used_space, voltage, int(sys_clock_speed), swap, memory, uptime_days, wifi_signal, wifi_signal_dbm, ip_addr
-    values = str(values)[1:-1]
-
-    # connect to mqtt server
-    client = paho.Client()
-    client.username_pw_set(config.mqtt_user, config.mqtt_password)
-    client.connect(config.mqtt_host, int(config.mqtt_port))
-
-    # publish monitored values to MQTT
-    client.publish(config.mqtt_topic_prefix + "/" + hostname, values, qos=1)
-
-    # disconnect from mqtt server
-    client.disconnect()
-    
-    
 if __name__ == '__main__':
     # set all monitored values to False in case they are turned off in the config
-    cpu_load = cpu_temp = used_space = voltage = sys_clock_speed = swap = memory = uptime_days = wifi_signal = wifi_signal_dbm = ip_addr =  False
+    cpu_load = cpu_temp = used_space = voltage = sys_clock_speed = swap = memory = uptime_days = wifi_signal = wifi_signal_dbm = ip_addr = bme280_temp = bme280_humidity = bme280_pressure = False
 
     # delay the execution of the script
     if hasattr(config, 'random_delay'): time.sleep(config.random_delay)
@@ -350,8 +398,11 @@ if __name__ == '__main__':
         wifi_signal_dbm = check_wifi_signal('dbm')
     if config.ip_addr:
         ip_addr = get_ip_address()
+    if config.bme280_temp:
+        bme280_temp = check_bme280_temp()
+    if config.bme280_humidity:
+        bme280_humidity = check_bme280_humidity()
+    if config.bme280_pressure:
+        bme280_pressure = check_bme280_pressure()
     # Publish messages to MQTT
-    if hasattr(config, 'group_messages') and config.group_messages:
-        bulk_publish_to_mqtt(cpu_load, cpu_temp, used_space, voltage, sys_clock_speed, swap, memory, uptime_days, wifi_signal, wifi_signal_dbm, ip_addr)
-    else:
-        publish_to_mqtt(cpu_load, cpu_temp, used_space, voltage, sys_clock_speed, swap, memory, uptime_days, wifi_signal, wifi_signal_dbm, ip_addr)
+    publish_to_mqtt(cpu_load, cpu_temp, used_space, voltage, sys_clock_speed, swap, memory, uptime_days, wifi_signal, wifi_signal_dbm, ip_addr, bme280_temp, bme280_humidity, bme280_pressure)
